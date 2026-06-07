@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect 5 Solver</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔵</text></svg>" />
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <h1>Connect 5 <span class="badge">Solver</span></h1>
+      <p class="tagline">Papan 9×7 · Sambungkan 5 untuk menang · AI Unbeatable</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="scoreboard">
+      <div class="score-card red-card">
+        <div class="score-label">Kamu</div>
+        <div class="score-chip red-chip"></div>
+        <div class="score-val" id="sc-human">0</div>
+      </div>
+      <div class="score-card draw-card">
+        <div class="score-label">Seri</div>
+        <div class="score-val" id="sc-draw">0</div>
+      </div>
+      <div class="score-card yellow-card">
+        <div class="score-label">AI</div>
+        <div class="score-chip yellow-chip"></div>
+        <div class="score-val" id="sc-ai">0</div>
+      </div>
+    </div>
+
+    <div class="mode-bar">
+      <span class="mode-label">Mode:</span>
+      <button class="mode-btn active" id="btn-pvai" onclick="setMode('pvai')">Lawan AI</button>
+      <button class="mode-btn" id="btn-pvp"  onclick="setMode('pvp')">2 Pemain</button>
+      <button class="mode-btn" id="btn-aiva" onclick="setMode('aiva')">AI vs AI</button>
+    </div>
+
+    <div class="status-bar" id="status-bar">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-msg">Giliranmu! Klik kolom untuk bermain.</span>
+    </div>
+
+    <div class="controls">
+      <button class="btn-action" id="btn-hint" onclick="findBestMove()">🔍 Best Move</button>
+      <button class="btn-action" id="btn-undo" onclick="undoMove()">↩ Undo</button>
+      <button class="btn-action btn-danger" onclick="resetGame()">↺ Mulai Ulang</button>
+    </div>
+
+    <div class="board-section">
+      <div class="col-btns" id="col-btns"></div>
+      <div class="board" id="board"></div>
+    </div>
+
+    <p class="hint-text" id="hint-text">Klik <strong>Best Move</strong> untuk melihat kolom terbaik yang disarankan AI.</p>
+  </main>
+
+  <footer>
+    <p>Connect 5 Solver · Dibuat dengan HTML, CSS, JS murni · Algoritma Minimax + Alpha-Beta Pruning</p>
+  </footer>
+
+  <script src="game.js"></script>
+</body>
+</html>
