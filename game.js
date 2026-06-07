@@ -2,9 +2,27 @@
 
 const COLS = 9, ROWS = 7, WIN = 5;
 
-let board, history, currentPlayer, gameOver, mode, scores, aiThinking;
+let board, history, currentPlayer, gameOver, mode, scores, aiThinking, humanSide;
 scores = { human: 0, ai: 0, draw: 0 };
 mode = 'pvai';
+humanSide = 1; // 1 = human is red (goes first), 2 = human is yellow (AI goes first)
+
+/* ── Side Selection ── */
+function setSide(side) {
+  humanSide = side;
+  ['p1','p2'].forEach(id => {
+    document.getElementById('btn-' + id).classList.toggle('active', id === (side === 1 ? 'p1' : 'p2'));
+  });
+  // Update scoreboard labels
+  if (side === 1) {
+    document.getElementById('label-p1').textContent = 'Kamu (Merah)';
+    document.getElementById('label-p2').textContent = 'AI (Kuning)';
+  } else {
+    document.getElementById('label-p1').textContent = 'AI (Merah)';
+    document.getElementById('label-p2').textContent = 'Kamu (Kuning)';
+  }
+  resetGame();
+}
 
 /* ── Init ── */
 function initBoard() {
@@ -23,12 +41,20 @@ function setMode(m) {
   ['pvai', 'pvp', 'aiva'].forEach(id => {
     document.getElementById('btn-' + id).classList.toggle('active', id === m);
   });
+  // Show side picker only for pvai mode
+  const sideBar = document.getElementById('side-bar');
+  if (sideBar) sideBar.classList.toggle('hidden', m !== 'pvai');
   resetGame();
 }
 
 function resetGame() {
   initBoard();
-  if (mode === 'aiva') setTimeout(() => aiMove(), 500);
+  if (mode === 'aiva') {
+    setTimeout(() => aiMove(), 500);
+  } else if (mode === 'pvai' && humanSide === 2) {
+    // Human is yellow (player 2), AI is red (player 1) → AI moves first
+    setTimeout(() => aiMove(), 400);
+  }
 }
 
 /* ── Board Helpers ── */
@@ -253,7 +279,8 @@ function undoMove() {
 function humanPlay(col) {
   if (gameOver || aiThinking) return;
   if (mode === 'aiva') return;
-  if (mode === 'pvai' && currentPlayer !== 1) return;
+  // In pvai mode, block input when it's the AI's turn
+  if (mode === 'pvai' && currentPlayer !== humanSide) return;
   const r = getDropRow(col);
   if (r < 0) return;
   clearHint();
@@ -264,7 +291,7 @@ function humanPlay(col) {
   if (isFull(board)) { endGame(0); return; }
   currentPlayer = currentPlayer === 1 ? 2 : 1;
   updateStatus();
-  if (mode === 'pvai' && currentPlayer === 2) setTimeout(() => aiMove(), 280);
+  if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 280);
 }
 
 /* ── AI Move ── */
@@ -286,6 +313,8 @@ function aiMove() {
     currentPlayer = currentPlayer === 1 ? 2 : 1;
     updateStatus();
     if (mode === 'aiva') setTimeout(() => aiMove(), 500);
+    // If still AI's turn after switch (shouldn't happen in pvai, but guard)
+    if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 400);
   }, 30);
 }
 
@@ -300,9 +329,16 @@ function endGame(winner) {
       if (el) el.classList.add('win-cell');
     });
   }
-  if      (winner === 0) { scores.draw++; setStatus('draw'); }
-  else if (winner === 1) { scores.human++; setStatus('win-human'); }
-  else                   { scores.ai++;   setStatus('win-ai'); }
+  if (winner === 0) {
+    scores.draw++;
+    setStatus('draw');
+  } else if (winner === humanSide) {
+    scores.human++;
+    setStatus('win-human');
+  } else {
+    scores.ai++;
+    setStatus('win-ai');
+  }
   document.getElementById('sc-human').textContent = scores.human;
   document.getElementById('sc-ai').textContent    = scores.ai;
   document.getElementById('sc-draw').textContent  = scores.draw;
@@ -313,14 +349,15 @@ function setStatus(state) {
   const dot = document.getElementById('status-dot');
   const msg = document.getElementById('status-msg');
   dot.className = 'status-dot';
+  const playerColor = humanSide === 1 ? 'Merah' : 'Kuning';
   const map = {
-    'thinking':  ['thinking', 'AI sedang berpikir...'],
-    'win-human': ['green',    '🎉 Kamu menang! Selamat!'],
-    'win-ai':    ['yellow',   '🤖 AI menang! Coba lagi?'],
-    'draw':      ['',         '🤝 Seri! Papan penuh.'],
-    'ai-turn':   ['yellow',   'Giliran AI (Kuning)...'],
-    'p2-turn':   ['yellow',   'Giliran Pemain 2 (Kuning). Klik kolom!'],
-    'player-turn':['red',     'Giliranmu! Klik kolom untuk bermain.'],
+    'thinking':   ['thinking', 'AI sedang berpikir...'],
+    'win-human':  ['green',    `🎉 Kamu menang! Selamat!`],
+    'win-ai':     [humanSide === 1 ? 'yellow' : 'red', '🤖 AI menang! Coba lagi?'],
+    'draw':       ['',         '🤝 Seri! Papan penuh.'],
+    'ai-turn':    [humanSide === 1 ? 'yellow' : 'red', 'Giliran AI...'],
+    'p2-turn':    ['yellow',   'Giliran Pemain 2 (Kuning). Klik kolom!'],
+    'player-turn':['red',      `Giliranmu (${playerColor})! Klik kolom untuk bermain.`],
   };
   const [cls, text] = map[state] || ['red', 'Giliranmu!'];
   if (cls) dot.classList.add(cls);
@@ -330,7 +367,7 @@ function setStatus(state) {
 function updateStatus() {
   if (gameOver || aiThinking) return;
   if (mode === 'pvai') {
-    setStatus(currentPlayer === 1 ? 'player-turn' : 'ai-turn');
+    setStatus(currentPlayer === humanSide ? 'player-turn' : 'ai-turn');
   } else if (mode === 'pvp') {
     setStatus(currentPlayer === 1 ? 'player-turn' : 'p2-turn');
   } else {
@@ -370,4 +407,5 @@ function render() {
 }
 
 /* ── Start ── */
-initBoard();
+setSide(1); // default: human is red, goes first
+setMode('pvai');

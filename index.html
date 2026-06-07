@@ -19,7 +19,7 @@
   <main>
     <div class="scoreboard">
       <div class="score-card red-card">
-        <div class="score-label">Kamu</div>
+        <div class="score-label" id="label-p1">Kamu</div>
         <div class="score-chip red-chip"></div>
         <div class="score-val" id="sc-human">0</div>
       </div>
@@ -28,7 +28,7 @@
         <div class="score-val" id="sc-draw">0</div>
       </div>
       <div class="score-card yellow-card">
-        <div class="score-label">AI</div>
+        <div class="score-label" id="label-p2">AI</div>
         <div class="score-chip yellow-chip"></div>
         <div class="score-val" id="sc-ai">0</div>
       </div>
@@ -39,6 +39,16 @@
       <button class="mode-btn active" id="btn-pvai" onclick="setMode('pvai')">Lawan AI</button>
       <button class="mode-btn" id="btn-pvp"  onclick="setMode('pvp')">2 Pemain</button>
       <button class="mode-btn" id="btn-aiva" onclick="setMode('aiva')">AI vs AI</button>
+    </div>
+
+    <div class="side-bar" id="side-bar">
+      <span class="mode-label">Mainkan sebagai:</span>
+      <button class="side-btn active" id="btn-p1" onclick="setSide(1)">
+        <span class="side-chip red-chip"></span> Merah &mdash; Jalan Duluan
+      </button>
+      <button class="side-btn" id="btn-p2" onclick="setSide(2)">
+        <span class="side-chip yellow-chip"></span> Kuning &mdash; AI Jalan Duluan
+      </button>
     </div>
 
     <div class="status-bar" id="status-bar">

@@ -103,6 +103,34 @@ main {
 .mode-btn:hover { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .mode-btn.active { background: var(--blue); color: #fff; border-color: var(--blue-dk); font-weight: 600; }
 
+/* ── Side Picker ── */
+.side-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.side-bar.hidden { display: none; }
+.side-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.15s;
+}
+.side-btn:hover { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+.side-btn.active { background: var(--blue); color: #fff; border-color: var(--blue-dk); font-weight: 600; }
+.side-btn.active .red-chip  { box-shadow: 0 0 0 2px #fff; }
+.side-btn.active .yellow-chip { box-shadow: 0 0 0 2px #fff; }
+.side-chip { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+
 /* ── Status Bar ── */
 .status-bar {
   display: flex;
