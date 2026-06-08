@@ -5,7 +5,7 @@ const COLS = 9, ROWS = 7, WIN = 5;
 let board, history, currentPlayer, gameOver, mode, scores, aiThinking, humanSide;
 scores = { human: 0, ai: 0, draw: 0 };
 mode = 'pvai';
-humanSide = 1; // 1 = human is red (goes first), 2 = human is yellow (AI goes first)
+humanSide = 1; // 1 = human is red (goes first), 2 = human is yellow (AI goes first as red)
 
 /* ── Side Selection ── */
 function setSide(side) {
@@ -13,7 +13,8 @@ function setSide(side) {
   ['p1','p2'].forEach(id => {
     document.getElementById('btn-' + id).classList.toggle('active', id === (side === 1 ? 'p1' : 'p2'));
   });
-  // Update scoreboard labels
+  // When human=1: human=Merah, AI=Kuning
+  // When human=2: human=Kuning, AI=Merah (AI goes first)
   if (side === 1) {
     document.getElementById('label-p1').textContent = 'Kamu (Merah)';
     document.getElementById('label-p2').textContent = 'AI (Kuning)';
@@ -41,7 +42,6 @@ function setMode(m) {
   ['pvai', 'pvp', 'aiva'].forEach(id => {
     document.getElementById('btn-' + id).classList.toggle('active', id === m);
   });
-  // Show side picker only for pvai mode
   const sideBar = document.getElementById('side-bar');
   if (sideBar) sideBar.classList.toggle('hidden', m !== 'pvai');
   resetGame();
@@ -114,22 +114,22 @@ function getWinCells(b) {
   return null;
 }
 
-/* ── AI Scoring ── */
+/* ── AI Scoring (used only for hint in game.js; main AI is in worker) ── */
 function scoreWindow(window, player) {
   const opp  = player === 1 ? 2 : 1;
   const cnt  = window.filter(x => x === player).length;
   const emp  = window.filter(x => x === 0).length;
   const ocnt = window.filter(x => x === opp).length;
-  if (cnt > 0 && ocnt > 0) return 0; // mixed window, no value
+  if (cnt > 0 && ocnt > 0) return 0;
   let s = 0;
-  if      (cnt === 5)              s += 1_000_000;
-  else if (cnt === 4 && emp === 1) s += 50_000;
-  else if (cnt === 3 && emp === 2) s += 1_000;
-  else if (cnt === 2 && emp === 3) s += 100;
-  if      (ocnt === 5)             s -= 1_000_000;
-  else if (ocnt === 4 && emp === 1) s -= 80_000;
-  else if (ocnt === 3 && emp === 2) s -= 2_000;
-  else if (ocnt === 2 && emp === 3) s -= 120;
+  if      (cnt === 5)               s += 10_000_000;
+  else if (cnt === 4 && emp === 1)  s += 200_000;
+  else if (cnt === 3 && emp === 2)  s += 5_000;
+  else if (cnt === 2 && emp === 3)  s += 200;
+  if      (ocnt === 5)              s -= 10_000_000;
+  else if (ocnt === 4 && emp === 1) s -= 500_000;
+  else if (ocnt === 3 && emp === 2) s -= 15_000;
+  else if (ocnt === 2 && emp === 3) s -= 300;
   return s;
 }
 
@@ -149,53 +149,13 @@ function scoreBoard(b, player) {
       }
     }
   }
-  // center column bonus
   const center = Math.floor(COLS / 2);
   for (let r = 0; r < ROWS; r++) {
-    if (b[r][center] === player)     sc += 6;
-    if (b[r][center - 1] === player || b[r][center + 1] === player) sc += 3;
-    if (b[r][center - 2] === player || b[r][center + 2] === player) sc += 1;
+    if (b[r][center] === player)     sc += 10;
+    if (b[r][center - 1] === player || b[r][center + 1] === player) sc += 5;
+    if (b[r][center - 2] === player || b[r][center + 2] === player) sc += 2;
   }
   return sc;
-}
-
-/* ── Minimax ── */
-function minimax(b, depth, alpha, beta, maximizing, aiPlayer) {
-  const win = getWinCells(b);
-  if (win) return win.player === aiPlayer ? 1_000_000 + depth : -1_000_000 - depth;
-  if (isFull(b) || depth === 0) return scoreBoard(b, aiPlayer) - scoreBoard(b, aiPlayer === 1 ? 2 : 1);
-
-  const center = Math.floor(COLS / 2);
-  const valid  = [];
-  for (let c = 0; c < COLS; c++) if (getDropRow(c, b) >= 0) valid.push(c);
-  valid.sort((a, b2) => Math.abs(a - center) - Math.abs(b2 - center));
-
-  if (maximizing) {
-    let best = -Infinity;
-    for (const col of valid) {
-      const r = getDropRow(col, b);
-      b[r][col] = aiPlayer;
-      const sc = minimax(b, depth - 1, alpha, beta, false, aiPlayer);
-      b[r][col] = 0;
-      best = Math.max(best, sc);
-      alpha = Math.max(alpha, sc);
-      if (beta <= alpha) break;
-    }
-    return best;
-  } else {
-    const opp = aiPlayer === 1 ? 2 : 1;
-    let best = Infinity;
-    for (const col of valid) {
-      const r = getDropRow(col, b);
-      b[r][col] = opp;
-      const sc = minimax(b, depth - 1, alpha, beta, true, aiPlayer);
-      b[r][col] = 0;
-      best = Math.min(best, sc);
-      beta = Math.min(beta, sc);
-      if (beta <= alpha) break;
-    }
-    return best;
-  }
 }
 
 /* ── Web Worker + WASM ── */
@@ -204,7 +164,6 @@ let aiWorker = null;
 function getWorker() {
   if (!aiWorker) {
     aiWorker = new Worker('ai.worker.js');
-    // Listen for engine-ready ping (optional, handled via first move response)
   }
   return aiWorker;
 }
@@ -221,7 +180,7 @@ function updateEngineBadge(engine, ms) {
     badge.textContent = '🟨 JavaScript';
   }
   if (timing && ms !== undefined) {
-    const color = ms < 300 ? '#065F46' : ms < 700 ? '#92400E' : '#991B1B';
+    const color = ms < 500 ? '#065F46' : ms < 1000 ? '#92400E' : '#991B1B';
     timing.innerHTML = `AI berpikir: <strong style="color:${color}">${ms} ms</strong>`;
   }
 }
@@ -265,13 +224,14 @@ function clearHint() {
 /* ── Undo ── */
 function undoMove() {
   if (gameOver || history.length === 0 || aiThinking) return;
+  // Undo AI move + human move together
   const last = history.pop();
   board[last.r][last.col] = 0;
   if (mode === 'pvai' && history.length > 0) {
     const prev = history.pop();
     board[prev.r][prev.col] = 0;
   }
-  currentPlayer = 1;
+  currentPlayer = humanSide; // restore to human's turn
   gameOver = false;
   clearHint();
   render();
@@ -282,7 +242,6 @@ function undoMove() {
 function humanPlay(col) {
   if (gameOver || aiThinking) return;
   if (mode === 'aiva') return;
-  // In pvai mode, block input when it's the AI's turn
   if (mode === 'pvai' && currentPlayer !== humanSide) return;
   const r = getDropRow(col);
   if (r < 0) return;
@@ -350,15 +309,21 @@ function setStatus(state) {
   const dot = document.getElementById('status-dot');
   const msg = document.getElementById('status-msg');
   dot.className = 'status-dot';
-  const playerColor = humanSide === 1 ? 'Merah' : 'Kuning';
+
+  // humanColor: warna bola manusia
+  const humanColor = humanSide === 1 ? 'Merah' : 'Kuning';
+  // aiColor: warna bola AI
+  const aiColor    = humanSide === 1 ? 'Kuning' : 'Merah';
+  const aiDotColor = humanSide === 1 ? 'yellow' : 'red';
+
   const map = {
-    'thinking':   ['thinking', 'AI sedang berpikir...'],
-    'win-human':  ['green',    `🎉 Kamu menang! Selamat!`],
-    'win-ai':     [humanSide === 1 ? 'yellow' : 'red', '🤖 AI menang! Coba lagi?'],
-    'draw':       ['',         '🤝 Seri! Papan penuh.'],
-    'ai-turn':    [humanSide === 1 ? 'yellow' : 'red', 'Giliran AI...'],
-    'p2-turn':    ['yellow',   'Giliran Pemain 2 (Kuning). Klik kolom!'],
-    'player-turn':['red',      `Giliranmu (${playerColor})! Klik kolom untuk bermain.`],
+    'thinking':    ['thinking',   'AI sedang berpikir...'],
+    'win-human':   ['green',      `🎉 Kamu menang! Selamat!`],
+    'win-ai':      [aiDotColor,   `🤖 AI menang! Coba lagi?`],
+    'draw':        ['',           '🤝 Seri! Papan penuh.'],
+    'ai-turn':     [aiDotColor,   `Giliran AI (${aiColor})...`],
+    'p2-turn':     ['yellow',     'Giliran Pemain 2 (Kuning). Klik kolom!'],
+    'player-turn': [humanSide === 1 ? 'red' : 'yellow', `Giliranmu (${humanColor})! Klik kolom untuk bermain.`],
   };
   const [cls, text] = map[state] || ['red', 'Giliranmu!'];
   if (cls) dot.classList.add(cls);

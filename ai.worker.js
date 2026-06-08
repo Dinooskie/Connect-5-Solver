@@ -1,7 +1,7 @@
 /* ── Connect 5 · AI Worker — WASM + Iterative Deepening + Time Limit ── */
 
 const COLS = 9, ROWS = 7, WIN = 5;
-const TIME_LIMIT_MS = 700; // hard cap: AI harus selesai dalam 700ms
+const TIME_LIMIT_MS = 1500; // increased from 700ms → 1500ms for deeper search
 const COL_ORDER = [4, 3, 5, 2, 6, 1, 7, 0, 8];
 
 let wasmExports = null;
@@ -27,7 +27,7 @@ async function loadWasm() {
   }
 }
 
-// ── JS Fallback (same algorithm, time-limited) ──
+// ── JS Fallback ──
 function getDropRowJS(b, col) {
   for (let r = ROWS-1; r>=0; r--) if (b[r][col]===0) return r;
   return -1;
@@ -50,60 +50,98 @@ function getWinnerJS(b) {
     for(const[dr,dc]of dirs){let cnt=1;for(let s=1;s<WIN;s++){const nr=r+dr*s,nc=c+dc*s;if(nr<0||nr>=ROWS||nc<0||nc>=COLS||b[nr][nc]!==p)break;cnt++;}if(cnt>=WIN)return p;}
   }return 0;
 }
+
+// ── IMPROVED EVAL: stronger threat detection ──
 function evalJS(b, player) {
   let sc=0; const opp=player===1?2:1;
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+
+  for(const[dr,dc]of dirs)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const w=[];for(let i=0;i<WIN;i++){const nr=r+dr*i,nc=c+dc*i;if(nr<0||nr>=ROWS||nc<0||nc>=COLS)break;w.push(b[nr][nc]);}
+    if(w.length!==WIN)continue;
+    const cnt=w.filter(x=>x===player).length;
+    const emp=w.filter(x=>x===0).length;
+    const ocnt=w.filter(x=>x===opp).length;
+    if(cnt&&ocnt)continue;
+    // AI offense
+    if(cnt===5) sc+=10000000;
+    else if(cnt===4&&emp===1) sc+=200000;   // was 50000 — near-win is CRITICAL
+    else if(cnt===3&&emp===2) sc+=5000;     // was 1000
+    else if(cnt===2&&emp===3) sc+=200;      // was 100
+    // AI defense — block opponent aggressively
+    if(ocnt===5) sc-=10000000;
+    else if(ocnt===4&&emp===1) sc-=500000;  // was 80000 — MUST block 4-in-a-row
+    else if(ocnt===3&&emp===2) sc-=15000;   // was 2000 — block 3-in-a-row harder
+    else if(ocnt===2&&emp===3) sc-=300;     // was 120
+  }
+
+  // Center column bonus (positional value)
+  const center=4;
+  for(let r=0;r<ROWS;r++){
+    if(b[r][center]===player)   sc+=10;
+    if(b[r][center-1]===player||b[r][center+1]===player) sc+=5;
+    if(b[r][center-2]===player||b[r][center+2]===player) sc+=2;
+  }
+
+  return sc;
+}
+
+// ── THREAT COUNTING: detects double-threat forks ──
+function countOpenThreats(b, player, minLen) {
+  // Count sequences of `minLen` with enough empty space to complete to WIN
+  let threats = 0;
+  const opp = player===1?2:1;
   const dirs=[[0,1],[1,0],[1,1],[1,-1]];
   for(const[dr,dc]of dirs)for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
     const w=[];for(let i=0;i<WIN;i++){const nr=r+dr*i,nc=c+dc*i;if(nr<0||nr>=ROWS||nc<0||nc>=COLS)break;w.push(b[nr][nc]);}
     if(w.length!==WIN)continue;
-    const cnt=w.filter(x=>x===player).length,emp=w.filter(x=>x===0).length,ocnt=w.filter(x=>x===opp).length;
-    if(cnt&&ocnt)continue; // mixed window, skip
-    if(cnt===5)sc+=1000000;
-    else if(cnt===4&&emp===1)sc+=50000;  // raised: near-win is critical
-    else if(cnt===3&&emp===2)sc+=1000;
-    else if(cnt===2&&emp===3)sc+=100;
-    if(ocnt===5)sc-=1000000;
-    else if(ocnt===4&&emp===1)sc-=80000; // raised: must block opponent 4-in-a-row
-    else if(ocnt===3&&emp===2)sc-=2000;  // raised: block opponent 3-in-a-row more urgently
-    else if(ocnt===2&&emp===3)sc-=120;
+    const cnt=w.filter(x=>x===player).length;
+    const emp=w.filter(x=>x===0).length;
+    const ocnt=w.filter(x=>x===opp).length;
+    if(ocnt===0&&cnt>=minLen)threats++;
   }
-  const center=4;
-  for(let r=0;r<ROWS;r++){
-    if(b[r][center]===player)sc+=6;
-    if(b[r][center-1]===player||b[r][center+1]===player)sc+=3;
-    if(b[r][center-2]===player||b[r][center+2]===player)sc+=1;
-  }
-  return sc;
+  return threats;
 }
 
 let jsDeadline = 0;
+
 function minimaxJS(b, depth, alpha, beta, maximizing, aiPlayer) {
   if (Date.now() >= jsDeadline) return 0;
   const winner=getWinnerJS(b);
-  if(winner===aiPlayer)return 1000000+depth;
-  if(winner!==0)return-1000000-depth;
-  if(isFullJS(b)||depth===0){const opp2=aiPlayer===1?2:1;return evalJS(b,aiPlayer)-evalJS(b,opp2);}
+  if(winner===aiPlayer)return 10000000+depth;
+  if(winner!==0)return-10000000-depth;
+  if(isFullJS(b)||depth===0){
+    const opp2=aiPlayer===1?2:1;
+    return evalJS(b,aiPlayer)-evalJS(b,opp2);
+  }
   const opp=aiPlayer===1?2:1;
 
-  // Move ordering: prioritize winning/blocking moves for better alpha-beta pruning
+  // Move ordering: prioritize winning/blocking/fork moves
   const curPlayer = maximizing ? aiPlayer : opp;
   const enemy     = maximizing ? opp : aiPlayer;
   const ordered   = [];
+  const winMoves=[], blockMoves=[], rest=[];
+
   for(const col of COL_ORDER){
     const r=getDropRowJS(b,col);if(r<0)continue;
-    b[r][col]=curPlayer;const isWin=checkWinJS(b,r,col,curPlayer);b[r][col]=0;
-    if(isWin){ordered.unshift(col);continue;}
-    b[r][col]=enemy;const isBlock=checkWinJS(b,r,col,enemy);b[r][col]=0;
-    if(isBlock){ordered.splice(1,0,col);continue;}
-    ordered.push(col);
+    b[r][col]=curPlayer;
+    if(checkWinJS(b,r,col,curPlayer)){b[r][col]=0;winMoves.push(col);continue;}
+    b[r][col]=0;
+    b[r][col]=enemy;
+    if(checkWinJS(b,r,col,enemy)){b[r][col]=0;blockMoves.push(col);continue;}
+    b[r][col]=0;
+    rest.push(col);
   }
+  ordered.push(...winMoves,...blockMoves,...rest);
 
   if(maximizing){
     let best=-Infinity;
     for(const col of ordered){
       if(Date.now()>=jsDeadline)break;
       const r=getDropRowJS(b,col);
-      b[r][col]=aiPlayer;const sc=minimaxJS(b,depth-1,alpha,beta,false,aiPlayer);b[r][col]=0;
+      b[r][col]=aiPlayer;
+      const sc=minimaxJS(b,depth-1,alpha,beta,false,aiPlayer);
+      b[r][col]=0;
       if(sc>best)best=sc;if(best>alpha)alpha=best;if(beta<=alpha)break;
     }
     return best;
@@ -112,7 +150,9 @@ function minimaxJS(b, depth, alpha, beta, maximizing, aiPlayer) {
     for(const col of ordered){
       if(Date.now()>=jsDeadline)break;
       const r=getDropRowJS(b,col);
-      b[r][col]=opp;const sc=minimaxJS(b,depth-1,alpha,beta,true,aiPlayer);b[r][col]=0;
+      b[r][col]=opp;
+      const sc=minimaxJS(b,depth-1,alpha,beta,true,aiPlayer);
+      b[r][col]=0;
       if(sc<best)best=sc;if(best<beta)beta=best;if(beta<=alpha)break;
     }
     return best;
@@ -122,39 +162,49 @@ function minimaxJS(b, depth, alpha, beta, maximizing, aiPlayer) {
 function getBestColJS(board, aiPlayer) {
   const opp=aiPlayer===1?2:1;
 
-  // Immediate win
+  // 1. Immediate win
   for(const col of COL_ORDER){const r=getDropRowJS(board,col);if(r<0)continue;board[r][col]=aiPlayer;const w=checkWinJS(board,r,col,aiPlayer);board[r][col]=0;if(w)return col;}
-  // Immediate block
+  // 2. Immediate block
   for(const col of COL_ORDER){const r=getDropRowJS(board,col);if(r<0)continue;board[r][col]=opp;const w=checkWinJS(board,r,col,opp);board[r][col]=0;if(w)return col;}
 
-  // Check for double-threat (opponent has 2+ ways to win next turn)
-  let oppWinCount=0, oppWinCol=-1;
-  for(const col of COL_ORDER){const r=getDropRowJS(board,col);if(r<0)continue;board[r][col]=opp;const w=checkWinJS(board,r,col,opp);board[r][col]=0;if(w){oppWinCount++;oppWinCol=col;}}
-  // If opponent has multiple winning moves, we can only try to block one - pick best eval
-  // (handled by minimax, just fall through)
+  // 3. Don't give opponent a free win: filter moves that let opponent win immediately
+  const safeCols = [];
+  for(const col of COL_ORDER){
+    const r=getDropRowJS(board,col);if(r<0)continue;
+    board[r][col]=aiPlayer;
+    // After AI plays col, check if opponent can win anywhere
+    let oppCanWin=false;
+    for(const col2 of COL_ORDER){
+      const r2=getDropRowJS(board,col2);if(r2<0)continue;
+      board[r2][col2]=opp;
+      if(checkWinJS(board,r2,col2,opp)){oppCanWin=true;board[r2][col2]=0;break;}
+      board[r2][col2]=0;
+    }
+    board[r][col]=0;
+    if(!oppCanWin)safeCols.push(col);
+  }
+  // If all moves let opponent win, fall through to minimax (pick least bad)
+  const searchCols = safeCols.length > 0 ? safeCols : [...COL_ORDER].filter(c=>getDropRowJS(board,c)>=0);
 
   jsDeadline = Date.now() + TIME_LIMIT_MS;
-  let bestCol = COL_ORDER[0]; // default center
+  let bestCol = searchCols[0];
 
-  // Iterative deepening: always commit completed iteration result
-  for (let depth = 2; depth <= 12; depth++) {
+  // Iterative deepening up to depth 14
+  for (let depth = 2; depth <= 14; depth++) {
     if (Date.now() >= jsDeadline) break;
     let iterBest=-Infinity, iterCol=bestCol;
     let iterComplete = true;
-    for(const col of COL_ORDER){
+    for(const col of searchCols){
       if(Date.now()>=jsDeadline){iterComplete=false;break;}
       const r=getDropRowJS(board,col);if(r<0)continue;
       board[r][col]=aiPlayer;
       const sc=minimaxJS(board,depth,-Infinity,Infinity,false,aiPlayer);
       board[r][col]=0;
       if(sc>iterBest){iterBest=sc;iterCol=col;}
-      // Winning move found at this depth, no need to continue
-      if(iterBest>=1000000)break;
+      if(iterBest>=10000000)break;
     }
-    // Only update bestCol if the entire iteration completed (or a winning move found)
-    if(iterComplete || iterBest>=1000000)bestCol=iterCol;
-    // If we found a winning move, no need to search deeper
-    if(iterBest>=1000000)break;
+    if(iterComplete||iterBest>=10000000)bestCol=iterCol;
+    if(iterBest>=10000000)break;
   }
   return bestCol;
 }
