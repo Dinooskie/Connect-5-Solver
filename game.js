@@ -196,41 +196,43 @@ function minimax(b, depth, alpha, beta, maximizing, aiPlayer) {
   }
 }
 
-function getBestCol(aiPlayer) {
-  const depth = 6;
-  const opp   = aiPlayer === 1 ? 2 : 1;
-  const center = Math.floor(COLS / 2);
-  const valid  = [];
-  for (let c = 0; c < COLS; c++) if (getDropRow(c) >= 0) valid.push(c);
-  valid.sort((a, b) => Math.abs(a - center) - Math.abs(b - center));
+/* ── Web Worker + WASM ── */
+let aiWorker = null;
 
-  // Immediate win
-  for (const col of valid) {
-    const r = getDropRow(col);
-    board[r][col] = aiPlayer;
-    const wins = checkWin(board, r, col, aiPlayer);
-    board[r][col] = 0;
-    if (wins) return col;
+function getWorker() {
+  if (!aiWorker) {
+    aiWorker = new Worker('ai.worker.js');
+    // Listen for engine-ready ping (optional, handled via first move response)
   }
-  // Block opponent
-  for (const col of valid) {
-    const r = getDropRow(col);
-    board[r][col] = opp;
-    const blocks = checkWin(board, r, col, opp);
-    board[r][col] = 0;
-    if (blocks) return col;
-  }
+  return aiWorker;
+}
 
-  // Minimax
-  let bestScore = -Infinity, bestCol = valid[0];
-  for (const col of valid) {
-    const b2 = cloneBoard();
-    const r  = getDropRow(col, b2);
-    b2[r][col] = aiPlayer;
-    const sc = minimax(b2, depth, -Infinity, Infinity, false, aiPlayer);
-    if (sc > bestScore) { bestScore = sc; bestCol = col; }
+function updateEngineBadge(engine, ms) {
+  const badge  = document.getElementById('engine-badge');
+  const timing = document.getElementById('engine-timing');
+  if (!badge) return;
+  if (engine === 'wasm') {
+    badge.className = 'engine-badge wasm';
+    badge.textContent = '⚡ WebAssembly';
+  } else {
+    badge.className = 'engine-badge js';
+    badge.textContent = '🟨 JavaScript';
   }
-  return bestCol;
+  if (timing && ms !== undefined) {
+    const color = ms < 300 ? '#065F46' : ms < 700 ? '#92400E' : '#991B1B';
+    timing.innerHTML = `AI berpikir: <strong style="color:${color}">${ms} ms</strong>`;
+  }
+}
+
+function askWorker(aiPlayer, onResult) {
+  const worker    = getWorker();
+  const boardCopy = board.map(r => [...r]);
+  worker.onmessage = (e) => {
+    const { col, ms, engine } = e.data;
+    updateEngineBadge(engine, ms);
+    onResult(col);
+  };
+  worker.postMessage({ board: boardCopy, aiPlayer });
 }
 
 /* ── Best Move Hint ── */
@@ -239,8 +241,7 @@ function findBestMove() {
   clearHint();
   aiThinking = true;
   setStatus('thinking');
-  setTimeout(() => {
-    const best = getBestCol(currentPlayer);
+  askWorker(currentPlayer, (best) => {
     aiThinking = false;
     if (best >= 0) {
       const btn = document.querySelectorAll('.col-btn')[best];
@@ -250,7 +251,7 @@ function findBestMove() {
     }
     updateStatus();
     render();
-  }, 30);
+  });
 }
 
 function clearHint() {
@@ -299,8 +300,7 @@ function aiMove() {
   if (gameOver) return;
   aiThinking = true;
   setStatus('thinking');
-  setTimeout(() => {
-    const col = getBestCol(currentPlayer);
+  askWorker(currentPlayer, (col) => {
     aiThinking = false;
     if (col < 0) { endGame(0); return; }
     const r = getDropRow(col);
@@ -312,10 +312,9 @@ function aiMove() {
     if (isFull(board)) { endGame(0); return; }
     currentPlayer = currentPlayer === 1 ? 2 : 1;
     updateStatus();
-    if (mode === 'aiva') setTimeout(() => aiMove(), 500);
-    // If still AI's turn after switch (shouldn't happen in pvai, but guard)
-    if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 400);
-  }, 30);
+    if (mode === 'aiva') setTimeout(() => aiMove(), 300);
+    if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 200);
+  });
 }
 
 /* ── End Game ── */
