@@ -120,14 +120,16 @@ function scoreWindow(window, player) {
   const cnt  = window.filter(x => x === player).length;
   const emp  = window.filter(x => x === 0).length;
   const ocnt = window.filter(x => x === opp).length;
+  if (cnt > 0 && ocnt > 0) return 0; // mixed window, no value
   let s = 0;
-  if      (cnt === 5)           s += 1_000_000;
-  else if (cnt === 4 && emp === 1) s += 8_000;
-  else if (cnt === 3 && emp === 2) s += 500;
-  else if (cnt === 2 && emp === 3) s += 50;
-  if      (ocnt === 4 && emp === 1) s -= 12_000;
-  else if (ocnt === 3 && emp === 2) s -= 800;
-  else if (ocnt === 2 && emp === 3) s -= 60;
+  if      (cnt === 5)              s += 1_000_000;
+  else if (cnt === 4 && emp === 1) s += 50_000;
+  else if (cnt === 3 && emp === 2) s += 1_000;
+  else if (cnt === 2 && emp === 3) s += 100;
+  if      (ocnt === 5)             s -= 1_000_000;
+  else if (ocnt === 4 && emp === 1) s -= 80_000;
+  else if (ocnt === 3 && emp === 2) s -= 2_000;
+  else if (ocnt === 2 && emp === 3) s -= 120;
   return s;
 }
 
@@ -150,9 +152,9 @@ function scoreBoard(b, player) {
   // center column bonus
   const center = Math.floor(COLS / 2);
   for (let r = 0; r < ROWS; r++) {
-    if (b[r][center] === player)     sc += 4;
-    if (b[r][center - 1] === player) sc += 2;
-    if (b[r][center + 1] === player) sc += 2;
+    if (b[r][center] === player)     sc += 6;
+    if (b[r][center - 1] === player || b[r][center + 1] === player) sc += 3;
+    if (b[r][center - 2] === player || b[r][center + 2] === player) sc += 1;
   }
   return sc;
 }
