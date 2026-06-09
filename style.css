@@ -74,10 +74,12 @@ main {
   text-align: center;
   box-shadow: var(--shadow);
 }
+.red-card   { border-top: 3px solid var(--red); }
+.yellow-card{ border-top: 3px solid var(--yellow); }
 .score-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px; }
 .score-val { font-size: 2rem; font-weight: 700; color: var(--text); }
 .score-chip { width: 20px; height: 20px; border-radius: 50%; margin: 4px auto; }
-.red-chip { background: var(--red); }
+.red-chip    { background: var(--red); }
 .yellow-chip { background: var(--yellow); }
 .draw-card .score-label { margin-bottom: 28px; }
 
@@ -100,7 +102,7 @@ main {
   color: var(--text);
   transition: all 0.15s;
 }
-.mode-btn:hover { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+.mode-btn:hover  { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .mode-btn.active { background: var(--blue); color: #fff; border-color: var(--blue-dk); font-weight: 600; }
 
 /* ── Side Picker ── */
@@ -125,9 +127,9 @@ main {
   color: var(--text);
   transition: all 0.15s;
 }
-.side-btn:hover { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+.side-btn:hover  { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .side-btn.active { background: var(--blue); color: #fff; border-color: var(--blue-dk); font-weight: 600; }
-.side-btn.active .red-chip  { box-shadow: 0 0 0 2px #fff; }
+.side-btn.active .red-chip    { box-shadow: 0 0 0 2px #fff; }
 .side-btn.active .yellow-chip { box-shadow: 0 0 0 2px #fff; }
 .side-chip { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
 
@@ -152,8 +154,8 @@ main {
   background: var(--muted);
   transition: background 0.3s;
 }
-.status-dot.red    { background: var(--red); }
-.status-dot.yellow { background: var(--yellow); }
+.status-dot.red     { background: var(--red); }
+.status-dot.yellow  { background: var(--yellow); }
 .status-dot.thinking {
   background: var(--blue-bg);
   border: 2px solid var(--blue);
@@ -178,7 +180,7 @@ main {
   align-items: center;
   gap: 6px;
 }
-.btn-action:hover:not(:disabled) { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+.btn-action:hover:not(:disabled)  { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .btn-action:active:not(:disabled) { transform: scale(0.97); }
 .btn-action:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-danger { background: var(--red); color: #fff; border-color: var(--red-dk); }
@@ -229,7 +231,7 @@ main {
   border-radius: 50%;
   background: var(--blue-dk);
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition: background 0.18s, transform 0.1s;
 }
 .cell:hover { transform: scale(1.05); }
 .cell.red {
@@ -245,9 +247,9 @@ main {
 .cell.win-cell {
   animation: winblink 0.5s ease-in-out infinite alternate;
 }
-@keyframes winblink { from{opacity:1;transform:scale(1)} to{opacity:0.6;transform:scale(1.08)} }
+@keyframes winblink { from{opacity:1;transform:scale(1)} to{opacity:0.65;transform:scale(1.1)} }
 
-/* ── Hint ── */
+/* ── Engine Bar ── */
 .engine-bar {
   display: flex;
   align-items: center;
@@ -267,12 +269,9 @@ main {
   border: 1px solid var(--border);
   color: var(--muted);
 }
-.engine-badge.wasm  { background: #ECFDF5; border-color: #6EE7B7; color: #065F46; }
-.engine-badge.js    { background: #FEFCE8; border-color: #FDE047; color: #713F12; }
-.engine-timing {
-  font-size: 12px;
-  color: var(--muted);
-}
+.engine-badge.wasm { background: #ECFDF5; border-color: #6EE7B7; color: #065F46; }
+.engine-badge.js   { background: #FEFCE8; border-color: #FDE047; color: #713F12; }
+.engine-timing { font-size: 12px; color: var(--muted); }
 .engine-timing strong { color: var(--text); }
 .hint-text {
   margin-top: 12px;

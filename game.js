@@ -1,11 +1,29 @@
-/* ── Connect 5 Solver · game.js ── */
+/* ── Connect 5 Solver v2 · game.js ── */
+/* PLAYER = MERAH (1) selalu | AI = KUNING (2) selalu */
 
 const COLS = 9, ROWS = 7, WIN = 5;
 
 let board, history, currentPlayer, gameOver, mode, scores, aiThinking, humanSide;
 scores = { human: 0, ai: 0, draw: 0 };
 mode = 'pvai';
-humanSide = 1; // 1 = human is red (goes first), 2 = human is yellow (AI goes first as red)
+humanSide = 1; // 1 = human jalan duluan, 2 = AI jalan duluan
+
+// AI selalu player 2 (kuning), Human selalu player 1 (merah)
+// Tapi ketika AI jalan duluan, AI bertindak sebagai currentPlayer=1 tapi tetap warna kuning
+// Solusi: gunakan mapping warna terpisah dari player number
+
+// playerColor(p): return css class untuk board cell
+function cellClass(v) {
+  // v=1 → yang jalan duluan dalam game logic (bisa human atau AI)
+  // v=2 → yang jalan kedua
+  // Kita map berdasarkan humanSide
+  if (v === 0) return '';
+  if (humanSide === 1) {
+    return v === 1 ? 'red' : 'yellow'; // human=1=merah, ai=2=kuning
+  } else {
+    return v === 1 ? 'yellow' : 'red'; // ai=1=kuning (jalan duluan), human=2=merah
+  }
+}
 
 /* ── Side Selection ── */
 function setSide(side) {
@@ -13,25 +31,19 @@ function setSide(side) {
   ['p1','p2'].forEach(id => {
     document.getElementById('btn-' + id).classList.toggle('active', id === (side === 1 ? 'p1' : 'p2'));
   });
-  // When human=1: human=Merah, AI=Kuning
-  // When human=2: human=Kuning, AI=Merah (AI goes first)
-  if (side === 1) {
-    document.getElementById('label-p1').textContent = 'Kamu (Merah)';
-    document.getElementById('label-p2').textContent = 'AI (Kuning)';
-  } else {
-    document.getElementById('label-p1').textContent = 'AI (Merah)';
-    document.getElementById('label-p2').textContent = 'Kamu (Kuning)';
-  }
+  // Label scoreboard: Kamu selalu merah, AI selalu kuning
+  document.getElementById('label-p1').textContent = 'Kamu (Merah)';
+  document.getElementById('label-p2').textContent = 'AI (Kuning)';
   resetGame();
 }
 
 /* ── Init ── */
 function initBoard() {
-  board        = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-  history      = [];
+  board         = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  history       = [];
   currentPlayer = 1;
-  gameOver     = false;
-  aiThinking   = false;
+  gameOver      = false;
+  aiThinking    = false;
   clearHint();
   render();
   updateStatus();
@@ -50,10 +62,10 @@ function setMode(m) {
 function resetGame() {
   initBoard();
   if (mode === 'aiva') {
-    setTimeout(() => aiMove(), 500);
-  } else if (mode === 'pvai' && humanSide === 2) {
-    // Human is yellow (player 2), AI is red (player 1) → AI moves first
     setTimeout(() => aiMove(), 400);
+  } else if (mode === 'pvai' && humanSide === 2) {
+    // Human merah tapi jalan kedua → AI jalan duluan (sebagai player 1)
+    setTimeout(() => aiMove(), 300);
   }
 }
 
@@ -79,16 +91,8 @@ function checkWin(b, row, col, player) {
   const dirs = [[0,1],[1,0],[1,1],[1,-1]];
   for (const [dr, dc] of dirs) {
     let cnt = 1;
-    for (let s = 1; s < WIN; s++) {
-      const nr = row + dr * s, nc = col + dc * s;
-      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || b[nr][nc] !== player) break;
-      cnt++;
-    }
-    for (let s = 1; s < WIN; s++) {
-      const nr = row - dr * s, nc = col - dc * s;
-      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || b[nr][nc] !== player) break;
-      cnt++;
-    }
+    for (let s=1;s<WIN;s++){const nr=row+dr*s,nc=col+dc*s;if(nr<0||nr>=ROWS||nc<0||nc>=COLS||b[nr][nc]!==player)break;cnt++;}
+    for (let s=1;s<WIN;s++){const nr=row-dr*s,nc=col-dc*s;if(nr<0||nr>=ROWS||nc<0||nc>=COLS||b[nr][nc]!==player)break;cnt++;}
     if (cnt >= WIN) return true;
   }
   return false;
@@ -103,8 +107,8 @@ function getWinCells(b) {
       for (const [dr, dc] of dirs) {
         let cells = [[r, c]];
         for (let s = 1; s < WIN; s++) {
-          const nr = r + dr * s, nc = c + dc * s;
-          if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || b[nr][nc] !== p) break;
+          const nr = r+dr*s, nc = c+dc*s;
+          if (nr<0||nr>=ROWS||nc<0||nc>=COLS||b[nr][nc]!==p) break;
           cells.push([nr, nc]);
         }
         if (cells.length >= WIN) return { player: p, cells };
@@ -114,51 +118,15 @@ function getWinCells(b) {
   return null;
 }
 
-/* ── AI Scoring (used only for hint in game.js; main AI is in worker) ── */
-function scoreWindow(window, player) {
-  const opp  = player === 1 ? 2 : 1;
-  const cnt  = window.filter(x => x === player).length;
-  const emp  = window.filter(x => x === 0).length;
-  const ocnt = window.filter(x => x === opp).length;
-  if (cnt > 0 && ocnt > 0) return 0;
-  let s = 0;
-  if      (cnt === 5)               s += 10_000_000;
-  else if (cnt === 4 && emp === 1)  s += 200_000;
-  else if (cnt === 3 && emp === 2)  s += 5_000;
-  else if (cnt === 2 && emp === 3)  s += 200;
-  if      (ocnt === 5)              s -= 10_000_000;
-  else if (ocnt === 4 && emp === 1) s -= 500_000;
-  else if (ocnt === 3 && emp === 2) s -= 15_000;
-  else if (ocnt === 2 && emp === 3) s -= 300;
-  return s;
+/* ── AI Player Number ── */
+// Dalam game logic, player 1 selalu jalan duluan
+// humanSide=1: human=1(merah), AI=2(kuning)
+// humanSide=2: AI=1(kuning jalan duluan), human=2(merah)
+function getAiPlayerNum() {
+  return humanSide === 1 ? 2 : 1;
 }
 
-function scoreBoard(b, player) {
-  let sc = 0;
-  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
-  for (const [dr, dc] of dirs) {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const win = [];
-        for (let i = 0; i < WIN; i++) {
-          const nr = r + dr * i, nc = c + dc * i;
-          if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) break;
-          win.push(b[nr][nc]);
-        }
-        if (win.length === WIN) sc += scoreWindow(win, player);
-      }
-    }
-  }
-  const center = Math.floor(COLS / 2);
-  for (let r = 0; r < ROWS; r++) {
-    if (b[r][center] === player)     sc += 10;
-    if (b[r][center - 1] === player || b[r][center + 1] === player) sc += 5;
-    if (b[r][center - 2] === player || b[r][center + 2] === player) sc += 2;
-  }
-  return sc;
-}
-
-/* ── Web Worker + WASM ── */
+/* ── Web Worker ── */
 let aiWorker = null;
 
 function getWorker() {
@@ -172,7 +140,7 @@ function updateEngineBadge(engine, ms) {
   const badge  = document.getElementById('engine-badge');
   const timing = document.getElementById('engine-timing');
   if (!badge) return;
-  if (engine === 'wasm') {
+  if (engine && engine.includes('wasm')) {
     badge.className = 'engine-badge wasm';
     badge.textContent = '⚡ WebAssembly';
   } else {
@@ -180,7 +148,7 @@ function updateEngineBadge(engine, ms) {
     badge.textContent = '🟨 JavaScript';
   }
   if (timing && ms !== undefined) {
-    const color = ms < 500 ? '#065F46' : ms < 1000 ? '#92400E' : '#991B1B';
+    const color = ms < 500 ? '#065F46' : ms < 900 ? '#92400E' : '#991B1B';
     timing.innerHTML = `AI berpikir: <strong style="color:${color}">${ms} ms</strong>`;
   }
 }
@@ -196,13 +164,14 @@ function askWorker(aiPlayer, onResult) {
   worker.postMessage({ board: boardCopy, aiPlayer });
 }
 
-/* ── Best Move Hint ── */
+/* ── Hint: Best Move ── */
 function findBestMove() {
   if (gameOver || aiThinking) return;
   clearHint();
   aiThinking = true;
   setStatus('thinking');
-  askWorker(currentPlayer, (best) => {
+  const forPlayer = mode === 'pvai' ? getAiPlayerNum() : currentPlayer;
+  askWorker(forPlayer, (best) => {
     aiThinking = false;
     if (best >= 0) {
       const btn = document.querySelectorAll('.col-btn')[best];
@@ -224,9 +193,10 @@ function clearHint() {
 /* ── Undo ── */
 function undoMove() {
   if (gameOver || history.length === 0 || aiThinking) return;
-  // Undo AI move + human move together
+  // Undo last move
   const last = history.pop();
   board[last.r][last.col] = 0;
+  // In pvai mode, also undo the AI's move
   if (mode === 'pvai' && history.length > 0) {
     const prev = history.pop();
     board[prev.r][prev.col] = 0;
@@ -253,7 +223,9 @@ function humanPlay(col) {
   if (isFull(board)) { endGame(0); return; }
   currentPlayer = currentPlayer === 1 ? 2 : 1;
   updateStatus();
-  if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 280);
+  if (mode === 'pvai' && currentPlayer !== humanSide) {
+    setTimeout(() => aiMove(), 150); // Fast response
+  }
 }
 
 /* ── AI Move ── */
@@ -261,7 +233,8 @@ function aiMove() {
   if (gameOver) return;
   aiThinking = true;
   setStatus('thinking');
-  askWorker(currentPlayer, (col) => {
+  const aiPlayer = mode === 'pvai' ? getAiPlayerNum() : currentPlayer;
+  askWorker(aiPlayer, (col) => {
     aiThinking = false;
     if (col < 0) { endGame(0); return; }
     const r = getDropRow(col);
@@ -273,8 +246,8 @@ function aiMove() {
     if (isFull(board)) { endGame(0); return; }
     currentPlayer = currentPlayer === 1 ? 2 : 1;
     updateStatus();
-    if (mode === 'aiva') setTimeout(() => aiMove(), 300);
-    if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 200);
+    if (mode === 'aiva')  setTimeout(() => aiMove(), 250);
+    if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 150);
   });
 }
 
@@ -289,6 +262,7 @@ function endGame(winner) {
       if (el) el.classList.add('win-cell');
     });
   }
+  const aiPlayer = getAiPlayerNum();
   if (winner === 0) {
     scores.draw++;
     setStatus('draw');
@@ -310,20 +284,14 @@ function setStatus(state) {
   const msg = document.getElementById('status-msg');
   dot.className = 'status-dot';
 
-  // humanColor: warna bola manusia
-  const humanColor = humanSide === 1 ? 'Merah' : 'Kuning';
-  // aiColor: warna bola AI
-  const aiColor    = humanSide === 1 ? 'Kuning' : 'Merah';
-  const aiDotColor = humanSide === 1 ? 'yellow' : 'red';
-
   const map = {
-    'thinking':    ['thinking',   'AI sedang berpikir...'],
-    'win-human':   ['green',      `🎉 Kamu menang! Selamat!`],
-    'win-ai':      [aiDotColor,   `🤖 AI menang! Coba lagi?`],
-    'draw':        ['',           '🤝 Seri! Papan penuh.'],
-    'ai-turn':     [aiDotColor,   `Giliran AI (${aiColor})...`],
-    'p2-turn':     ['yellow',     'Giliran Pemain 2 (Kuning). Klik kolom!'],
-    'player-turn': [humanSide === 1 ? 'red' : 'yellow', `Giliranmu (${humanColor})! Klik kolom untuk bermain.`],
+    'thinking':    ['thinking', 'AI sedang berpikir...'],
+    'win-human':   ['green',    '😱 Kamu menang! (Tidak mungkin...)'],
+    'win-ai':      ['yellow',   '🤖 AI (Kuning) menang!'],
+    'draw':        ['',         '🤝 Seri! Papan penuh.'],
+    'ai-turn':     ['yellow',   'Giliran AI (Kuning)...'],
+    'p2-turn':     ['yellow',   'Giliran Pemain 2 (Kuning). Klik kolom!'],
+    'player-turn': ['red',      'Giliranmu (Merah)! Klik kolom untuk bermain.'],
   };
   const [cls, text] = map[state] || ['red', 'Giliranmu!'];
   if (cls) dot.classList.add(cls);
@@ -362,7 +330,7 @@ function render() {
     for (let c = 0; c < COLS; c++) {
       const cell = document.createElement('div');
       const v = board[r][c];
-      cell.className = 'cell ' + (v === 1 ? 'red' : v === 2 ? 'yellow' : '');
+      cell.className = 'cell ' + cellClass(v);
       cell.addEventListener('click', () => humanPlay(c));
       boardEl.appendChild(cell);
     }
@@ -373,5 +341,5 @@ function render() {
 }
 
 /* ── Start ── */
-setSide(1); // default: human is red, goes first
+setSide(1);
 setMode('pvai');
