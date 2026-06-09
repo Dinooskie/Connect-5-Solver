@@ -140,15 +140,10 @@ function updateEngineBadge(engine, ms) {
   const badge  = document.getElementById('engine-badge');
   const timing = document.getElementById('engine-timing');
   if (!badge) return;
-  if (engine && engine.includes('wasm')) {
-    badge.className = 'engine-badge wasm';
-    badge.textContent = '⚡ WebAssembly';
-  } else {
-    badge.className = 'engine-badge js';
-    badge.textContent = '🟨 JavaScript';
-  }
+  badge.className = 'engine-badge wasm'; // reuse green wasm style
+  badge.textContent = '🧠 Negamax AI';
   if (timing && ms !== undefined) {
-    const color = ms < 500 ? '#065F46' : ms < 900 ? '#92400E' : '#991B1B';
+    const color = ms < 300 ? '#065F46' : ms < 480 ? '#92400E' : '#991B1B';
     timing.innerHTML = `AI berpikir: <strong style="color:${color}">${ms} ms</strong>`;
   }
 }
@@ -224,7 +219,7 @@ function humanPlay(col) {
   currentPlayer = currentPlayer === 1 ? 2 : 1;
   updateStatus();
   if (mode === 'pvai' && currentPlayer !== humanSide) {
-    setTimeout(() => aiMove(), 150); // Fast response
+    setTimeout(() => aiMove(), 50); // Fast response
   }
 }
 
@@ -246,8 +241,8 @@ function aiMove() {
     if (isFull(board)) { endGame(0); return; }
     currentPlayer = currentPlayer === 1 ? 2 : 1;
     updateStatus();
-    if (mode === 'aiva')  setTimeout(() => aiMove(), 250);
-    if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 150);
+    if (mode === 'aiva')  setTimeout(() => aiMove(), 200);
+    if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 50);
   });
 }
 
