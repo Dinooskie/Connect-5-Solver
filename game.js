@@ -132,6 +132,19 @@ let aiWorker = null;
 function getWorker() {
   if (!aiWorker) {
     aiWorker = new Worker('ai.worker.js');
+    aiWorker.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'ready') {
+        const badge = document.getElementById('engine-badge');
+        if (!badge) return;
+        if (e.data.engine === 'wasm') {
+          badge.className = 'engine-badge wasm';
+          badge.textContent = '⚡ WebAssembly';
+        } else {
+          badge.className = 'engine-badge js';
+          badge.textContent = '🟨 JavaScript';
+        }
+      }
+    });
   }
   return aiWorker;
 }
@@ -139,11 +152,17 @@ function getWorker() {
 function updateEngineBadge(engine, ms) {
   const badge  = document.getElementById('engine-badge');
   const timing = document.getElementById('engine-timing');
-  if (!badge) return;
-  badge.className = 'engine-badge wasm'; // reuse green wasm style
-  badge.textContent = '🧠 Negamax AI';
+  if (badge) {
+    if (engine === 'wasm') {
+      badge.className = 'engine-badge wasm';
+      badge.textContent = '⚡ WebAssembly';
+    } else {
+      badge.className = 'engine-badge js';
+      badge.textContent = '🟨 JavaScript';
+    }
+  }
   if (timing && ms !== undefined) {
-    const color = ms < 300 ? '#065F46' : ms < 480 ? '#92400E' : '#991B1B';
+    const color = ms < 300 ? '#065F46' : ms < 500 ? '#92400E' : '#991B1B';
     timing.innerHTML = `AI berpikir: <strong style="color:${color}">${ms} ms</strong>`;
   }
 }
@@ -152,6 +171,7 @@ function askWorker(aiPlayer, onResult) {
   const worker    = getWorker();
   const boardCopy = board.map(r => [...r]);
   worker.onmessage = (e) => {
+    if (e.data && e.data.type === 'ready') return;
     const { col, ms, engine } = e.data;
     updateEngineBadge(engine, ms);
     onResult(col);
