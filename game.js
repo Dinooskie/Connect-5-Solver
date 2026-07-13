@@ -136,13 +136,8 @@ function getWorker() {
       if (e.data && e.data.type === 'ready') {
         const badge = document.getElementById('engine-badge');
         if (!badge) return;
-        if (e.data.engine === 'wasm') {
-          badge.className = 'engine-badge wasm';
-          badge.textContent = '⚡ WebAssembly';
-        } else {
-          badge.className = 'engine-badge js';
-          badge.textContent = '🟨 JavaScript';
-        }
+        badge.className = 'engine-badge wasm';
+        badge.textContent = '🧠 Negamax Engine';
       }
     });
   }
@@ -153,13 +148,8 @@ function updateEngineBadge(engine, ms) {
   const badge  = document.getElementById('engine-badge');
   const timing = document.getElementById('engine-timing');
   if (badge) {
-    if (engine === 'wasm') {
-      badge.className = 'engine-badge wasm';
-      badge.textContent = '⚡ WebAssembly';
-    } else {
-      badge.className = 'engine-badge js';
-      badge.textContent = '🟨 JavaScript';
-    }
+    badge.className = 'engine-badge wasm';
+    badge.textContent = '🧠 Negamax Engine';
   }
   if (timing && ms !== undefined) {
     const color = ms < 300 ? '#065F46' : ms < 500 ? '#92400E' : '#991B1B';
