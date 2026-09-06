@@ -4,6 +4,7 @@
 const COLS = 9, ROWS = 7, WIN = 5;
 
 let board, history, currentPlayer, gameOver, mode, scores, aiThinking, humanSide;
+let gameVersion = 0, aiTimer = null;
 scores = { human: 0, ai: 0, draw: 0 };
 mode = 'pvai';
 humanSide = 1; // 1 = human jalan duluan, 2 = AI jalan duluan
@@ -59,13 +60,26 @@ function setMode(m) {
   resetGame();
 }
 
+function scheduleAiMove(delay) {
+  clearTimeout(aiTimer);
+  const version = gameVersion;
+  aiTimer = setTimeout(() => {
+    if (version === gameVersion) aiMove();
+  }, delay);
+}
+
 function resetGame() {
+  gameVersion++;
+  clearTimeout(aiTimer);
+  if (aiWorker) {
+    aiWorker.terminate();
+    aiWorker = null;
+  }
   initBoard();
   if (mode === 'aiva') {
-    setTimeout(() => aiMove(), 400);
+    scheduleAiMove(400);
   } else if (mode === 'pvai' && humanSide === 2) {
-    // Human merah tapi jalan kedua → AI jalan duluan (sebagai player 1)
-    setTimeout(() => aiMove(), 300);
+    scheduleAiMove(300);
   }
 }
 
@@ -158,10 +172,12 @@ function updateEngineBadge(engine, ms) {
 }
 
 function askWorker(aiPlayer, onResult) {
-  const worker    = getWorker();
+  const worker = getWorker();
   const boardCopy = board.map(r => [...r]);
+  const version = gameVersion;
   worker.onmessage = (e) => {
     if (e.data && e.data.type === 'ready') return;
+    if (version !== gameVersion) return;
     const { col, ms, engine } = e.data;
     updateEngineBadge(engine, ms);
     onResult(col);
@@ -175,8 +191,7 @@ function findBestMove() {
   clearHint();
   aiThinking = true;
   setStatus('thinking');
-  const forPlayer = mode === 'pvai' ? getAiPlayerNum() : currentPlayer;
-  askWorker(forPlayer, (best) => {
+  askWorker(currentPlayer, (best) => {
     aiThinking = false;
     if (best >= 0) {
       const btn = document.querySelectorAll('.col-btn')[best];
@@ -198,15 +213,16 @@ function clearHint() {
 /* ── Undo ── */
 function undoMove() {
   if (gameOver || history.length === 0 || aiThinking) return;
-  // Undo last move
+  gameVersion++;
+  clearTimeout(aiTimer);
   const last = history.pop();
   board[last.r][last.col] = 0;
-  // In pvai mode, also undo the AI's move
-  if (mode === 'pvai' && history.length > 0) {
+  currentPlayer = last.player;
+  if (mode === 'pvai' && currentPlayer !== humanSide && history.length > 0) {
     const prev = history.pop();
     board[prev.r][prev.col] = 0;
+    currentPlayer = prev.player;
   }
-  currentPlayer = humanSide; // restore to human's turn
   gameOver = false;
   clearHint();
   render();
@@ -229,7 +245,7 @@ function humanPlay(col) {
   currentPlayer = currentPlayer === 1 ? 2 : 1;
   updateStatus();
   if (mode === 'pvai' && currentPlayer !== humanSide) {
-    setTimeout(() => aiMove(), 50); // Fast response
+    scheduleAiMove(50);
   }
 }
 
@@ -251,8 +267,8 @@ function aiMove() {
     if (isFull(board)) { endGame(0); return; }
     currentPlayer = currentPlayer === 1 ? 2 : 1;
     updateStatus();
-    if (mode === 'aiva')  setTimeout(() => aiMove(), 200);
-    if (mode === 'pvai' && currentPlayer !== humanSide) setTimeout(() => aiMove(), 50);
+    if (mode === 'aiva') scheduleAiMove(200);
+    if (mode === 'pvai' && currentPlayer !== humanSide) scheduleAiMove(50);
   });
 }
 
@@ -267,7 +283,6 @@ function endGame(winner) {
       if (el) el.classList.add('win-cell');
     });
   }
-  const aiPlayer = getAiPlayerNum();
   if (winner === 0) {
     scores.draw++;
     setStatus('draw');
