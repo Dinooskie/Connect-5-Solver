@@ -8,8 +8,8 @@
 */
 
 const COLS = 9, ROWS = 7, WIN = 5;
-const TIME_LIMIT_MS = 900;           // thinking budget per move
-const MAX_DEPTH = 20;                 // hard ceiling for iterative deepening
+const TIME_LIMIT_MS = 1500;
+const MAX_DEPTH = 30;
 const COL_ORDER = [4, 3, 5, 2, 6, 1, 7, 0, 8]; // center-out move order
 
 const WIN_SCORE = 10_000_000;
@@ -153,19 +153,29 @@ let timedOut = false;
 let nodeCount = 0;
 
 function boardKey(b, p) {
-  // Small, fast, collision-free enough key for this board size.
-  let s = '';
-  for (let r = 0; r < ROWS; r++) s += b[r].join('');
-  return s + '|' + p;
+  let normal = '', mirrored = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      normal += b[r][c];
+      mirrored += b[r][COLS - 1 - c];
+    }
+  }
+  return (normal < mirrored ? normal : mirrored) + p;
 }
 
 function negamax(b, depth, alpha, beta, p, lastR, lastC, tt) {
   nodeCount++;
-  if ((nodeCount & 511) === 0 && Date.now() >= deadline) { timedOut = true; return 0; }
+  if ((nodeCount & 255) === 0 && Date.now() >= deadline) { timedOut = true; return 0; }
 
   const justMoved = p === 1 ? 2 : 1;
   if (lastR >= 0 && cwin(b, lastR, lastC, justMoved)) return -(WIN_SCORE + depth);
   if (isFull(b)) return 0;
+
+  const myWins = liveWinCols(b, p);
+  if (myWins.length) return WIN_SCORE + depth;
+  const opp = p === 1 ? 2 : 1;
+  const oppWins = liveWinCols(b, opp);
+  if (oppWins.length > 1) return -(WIN_SCORE + depth - 1);
   if (depth === 0) return evalBoard(b, p);
 
   const key = boardKey(b, p);
@@ -181,8 +191,8 @@ function negamax(b, depth, alpha, beta, p, lastR, lastC, tt) {
     ttMove = entry.move;
   }
 
-  let cols = [];
-  for (const c of COL_ORDER) if (dropR(b, c) >= 0) cols.push(c);
+  let cols = oppWins.length === 1 ? oppWins : [];
+  if (cols.length === 0) for (const c of COL_ORDER) if (dropR(b, c) >= 0) cols.push(c);
   if (cols.length === 0) return 0;
   cols = orderMoves(b, cols, p);
   if (ttMove >= 0) {
@@ -192,7 +202,6 @@ function negamax(b, depth, alpha, beta, p, lastR, lastC, tt) {
 
   const alphaOrig = alpha;
   let best = -Infinity, bestMove = cols[0];
-  const opp = p === 1 ? 2 : 1;
 
   for (const col of cols) {
     const r = dropR(b, col);
@@ -213,7 +222,7 @@ function negamax(b, depth, alpha, beta, p, lastR, lastC, tt) {
   return best;
 }
 
-function getBestJS(board, ai) {
+function getBestJS(board, ai, options = {}) {
   const opp = ai === 1 ? 2 : 1;
 
   // 1) Take an immediate win if it exists.
@@ -238,7 +247,9 @@ function getBestJS(board, ai) {
   if (availCols.length === 0) return -1;
   if (availCols.length === 1) return availCols[0];
 
-  deadline = Date.now() + TIME_LIMIT_MS;
+  const timeLimitMs = options.timeLimitMs ?? TIME_LIMIT_MS;
+  const maxDepth = options.maxDepth ?? MAX_DEPTH;
+  deadline = Date.now() + timeLimitMs;
   timedOut = false;
   nodeCount = 0;
   const tt = new Map();
@@ -246,7 +257,7 @@ function getBestJS(board, ai) {
   let best = availCols[0];
   let rootOrder = orderMoves(board, availCols, ai);
 
-  for (let depth = 2; depth <= MAX_DEPTH; depth++) {
+  for (let depth = 2; depth <= maxDepth; depth++) {
     if (Date.now() >= deadline) break;
     let iterBest = -Infinity, iterMove = rootOrder[0];
     let alpha = -Infinity;
@@ -269,7 +280,7 @@ function getBestJS(board, ai) {
       // Re-order next iteration so the current best move is searched first
       // (much better alpha-beta cutoffs on the next, deeper pass).
       rootOrder = [iterMove, ...rootOrder.filter(c => c !== iterMove)];
-      if (iterBest >= WIN_SCORE - MAX_DEPTH) break; // forced win found, no need to go deeper
+      if (iterBest >= WIN_SCORE - maxDepth) break;
     } else {
       break;
     }
