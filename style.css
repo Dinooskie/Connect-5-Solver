@@ -20,7 +20,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
+  background: radial-gradient(circle at top, #fff 0, var(--bg) 42rem);
   color: var(--text);
   min-height: 100vh;
   display: flex;
@@ -29,8 +29,8 @@ body {
 
 /* ── Header ── */
 header {
-  background: linear-gradient(135deg, var(--blue-dk), var(--blue));
-  padding: 2rem 1rem 1.5rem;
+  background: linear-gradient(135deg, #082f56, var(--blue) 65%, #287bc1);
+  padding: 2.25rem 1rem 1.75rem;
   text-align: center;
   color: #fff;
 }
@@ -104,6 +104,7 @@ main {
 }
 .mode-btn:hover  { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .mode-btn.active { background: var(--blue); color: #fff; border-color: var(--blue-dk); font-weight: 600; }
+button:focus-visible { outline: 3px solid rgba(24, 95, 165, 0.35); outline-offset: 2px; }
 
 /* ── Side Picker ── */
 .side-bar {
@@ -210,10 +211,10 @@ main {
   transition: all 0.15s;
   user-select: none;
 }
-.col-btn:hover:not(.col-disabled) { background: var(--blue); color: #fff; border-color: var(--blue-dk); }
+.col-btn:hover:not(:disabled) { background: var(--blue); color: #fff; border-color: var(--blue-dk); }
 .col-btn.col-best { background: #1D9E75; color: #fff; border-color: #0F6E56; animation: bestpulse 0.8s ease-in-out infinite alternate; }
 @keyframes bestpulse { from{box-shadow:none} to{box-shadow:0 0 0 3px rgba(29,158,117,0.35)} }
-.col-btn.col-disabled { cursor: not-allowed; opacity: 0.3; pointer-events: none; }
+.col-btn:disabled { cursor: not-allowed; opacity: 0.3; }
 
 .board {
   display: grid;
@@ -230,10 +231,8 @@ main {
   width: 52px; height: 52px;
   border-radius: 50%;
   background: var(--blue-dk);
-  cursor: pointer;
   transition: background 0.18s, transform 0.1s;
 }
-.cell:hover { transform: scale(1.05); }
 .cell.red {
   background: var(--red);
   box-shadow: inset 0 -3px 0 rgba(0,0,0,0.25), 0 0 0 2px rgba(226,75,74,0.3);
@@ -293,10 +292,22 @@ footer {
 
 /* ── Responsive ── */
 @media (max-width: 520px) {
+  header { padding: 1.5rem 1rem 1.25rem; }
+  main { padding: 1rem 0.75rem 1.5rem; }
+  .scoreboard { gap: 6px; }
+  .score-card { padding: 10px 6px; }
   .board, .col-btns { grid-template-columns: repeat(9, 38px); }
   .cell, .col-btn { width: 38px; }
   .cell { height: 38px; }
   .col-btn { height: 26px; font-size: 14px; }
   .board { gap: 4px; padding: 8px; }
   .col-btns { gap: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

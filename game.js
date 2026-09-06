@@ -30,7 +30,9 @@ function cellClass(v) {
 function setSide(side) {
   humanSide = side;
   ['p1','p2'].forEach(id => {
-    document.getElementById('btn-' + id).classList.toggle('active', id === (side === 1 ? 'p1' : 'p2'));
+    const active = id === (side === 1 ? 'p1' : 'p2');
+    document.getElementById('btn-' + id).classList.toggle('active', active);
+    document.getElementById('btn-' + id).setAttribute('aria-pressed', active);
   });
   // Label scoreboard: Kamu selalu merah, AI selalu kuning
   document.getElementById('label-p1').textContent = 'Kamu (Merah)';
@@ -53,7 +55,9 @@ function initBoard() {
 function setMode(m) {
   mode = m;
   ['pvai', 'pvp', 'aiva'].forEach(id => {
-    document.getElementById('btn-' + id).classList.toggle('active', id === m);
+    const active = id === m;
+    document.getElementById('btn-' + id).classList.toggle('active', active);
+    document.getElementById('btn-' + id).setAttribute('aria-pressed', active);
   });
   const sideBar = document.getElementById('side-bar');
   if (sideBar) sideBar.classList.toggle('hidden', m !== 'pvai');
@@ -150,8 +154,8 @@ function getWorker() {
       if (e.data && e.data.type === 'ready') {
         const badge = document.getElementById('engine-badge');
         if (!badge) return;
-        badge.className = 'engine-badge wasm';
-        badge.textContent = '🧠 Negamax Engine';
+        badge.className = 'engine-badge js';
+        badge.textContent = 'Negamax Engine';
       }
     });
   }
@@ -162,8 +166,8 @@ function updateEngineBadge(engine, ms) {
   const badge  = document.getElementById('engine-badge');
   const timing = document.getElementById('engine-timing');
   if (badge) {
-    badge.className = 'engine-badge wasm';
-    badge.textContent = '🧠 Negamax Engine';
+    badge.className = 'engine-badge js';
+    badge.textContent = 'Negamax Engine';
   }
   if (timing && ms !== undefined) {
     const color = ms < 300 ? '#065F46' : ms < 500 ? '#92400E' : '#991B1B';
@@ -193,14 +197,14 @@ function findBestMove() {
   setStatus('thinking');
   askWorker(currentPlayer, (best) => {
     aiThinking = false;
+    updateStatus();
+    render();
     if (best >= 0) {
       const btn = document.querySelectorAll('.col-btn')[best];
       if (btn) btn.classList.add('col-best');
       document.getElementById('hint-text').innerHTML =
         `Kolom terbaik: <strong>Kolom ${best + 1}</strong> (dihitung dari kiri)`;
     }
-    updateStatus();
-    render();
   });
 }
 
@@ -306,9 +310,9 @@ function setStatus(state) {
 
   const map = {
     'thinking':    ['thinking', 'AI sedang berpikir...'],
-    'win-human':   ['green',    '😱 Kamu menang! (Tidak mungkin...)'],
-    'win-ai':      ['yellow',   '🤖 AI (Kuning) menang!'],
-    'draw':        ['',         '🤝 Seri! Papan penuh.'],
+    'win-human':   ['green',    'Kamu menang!'],
+    'win-ai':      ['yellow',   'AI (Kuning) menang!'],
+    'draw':        ['',         'Seri! Papan penuh.'],
     'ai-turn':     ['yellow',   'Giliran AI (Kuning)...'],
     'p2-turn':     ['yellow',   'Giliran Pemain 2 (Kuning). Klik kolom!'],
     'player-turn': ['red',      'Giliranmu (Merah)! Klik kolom untuk bermain.'],
@@ -337,11 +341,13 @@ function render() {
   colBtns.innerHTML = '';
 
   for (let c = 0; c < COLS; c++) {
-    const btn = document.createElement('div');
+    const btn = document.createElement('button');
     const full = getDropRow(c) < 0;
-    btn.className = 'col-btn' + (full || gameOver ? ' col-disabled' : '');
+    btn.type = 'button';
+    btn.className = 'col-btn';
+    btn.disabled = full || gameOver || aiThinking;
     btn.textContent = '▼';
-    btn.title = `Kolom ${c + 1}`;
+    btn.setAttribute('aria-label', `Jatuhkan keping di kolom ${c + 1}`);
     btn.addEventListener('click', () => humanPlay(c));
     colBtns.appendChild(btn);
   }
@@ -351,7 +357,8 @@ function render() {
       const cell = document.createElement('div');
       const v = board[r][c];
       cell.className = 'cell ' + cellClass(v);
-      cell.addEventListener('click', () => humanPlay(c));
+      cell.setAttribute('role', 'gridcell');
+      cell.setAttribute('aria-label', `Baris ${r + 1}, kolom ${c + 1}: ${v ? (cellClass(v) === 'red' ? 'merah' : 'kuning') : 'kosong'}`);
       boardEl.appendChild(cell);
     }
   }

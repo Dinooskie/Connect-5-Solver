@@ -12,7 +12,7 @@
   <header>
     <div class="header-inner">
       <h1>Connect 5 <span class="badge">Solver</span></h1>
-      <p class="tagline">Papan 9×7 · Sambungkan 5 untuk menang · AI Unbeatable 🧠</p>
+      <p class="tagline">Papan 9×7 · Sambungkan 5 untuk menang · AI sangat kuat</p>
     </div>
   </header>
 
@@ -34,24 +34,24 @@
       </div>
     </div>
 
-    <div class="mode-bar">
+    <div class="mode-bar" aria-label="Pilih mode permainan">
       <span class="mode-label">Mode:</span>
-      <button class="mode-btn active" id="btn-pvai" onclick="setMode('pvai')">Lawan AI</button>
-      <button class="mode-btn" id="btn-pvp"  onclick="setMode('pvp')">2 Pemain</button>
-      <button class="mode-btn" id="btn-aiva" onclick="setMode('aiva')">AI vs AI</button>
+      <button class="mode-btn active" id="btn-pvai" aria-pressed="true" onclick="setMode('pvai')">Lawan AI</button>
+      <button class="mode-btn" id="btn-pvp" aria-pressed="false" onclick="setMode('pvp')">2 Pemain</button>
+      <button class="mode-btn" id="btn-aiva" aria-pressed="false" onclick="setMode('aiva')">AI vs AI</button>
     </div>
 
     <div class="side-bar" id="side-bar">
       <span class="mode-label">Siapa jalan duluan:</span>
-      <button class="side-btn active" id="btn-p1" onclick="setSide(1)">
+      <button class="side-btn active" id="btn-p1" aria-pressed="true" onclick="setSide(1)">
         <span class="side-chip red-chip"></span> Kamu (Merah) &mdash; Jalan Duluan
       </button>
-      <button class="side-btn" id="btn-p2" onclick="setSide(2)">
+      <button class="side-btn" id="btn-p2" aria-pressed="false" onclick="setSide(2)">
         <span class="side-chip yellow-chip"></span> AI (Kuning) &mdash; Jalan Duluan
       </button>
     </div>
 
-    <div class="status-bar" id="status-bar">
+    <div class="status-bar" id="status-bar" role="status" aria-live="polite">
       <span class="status-dot" id="status-dot"></span>
       <span id="status-msg">Giliranmu! Klik kolom untuk bermain.</span>
     </div>
@@ -64,11 +64,11 @@
 
     <div class="board-section">
       <div class="col-btns" id="col-btns"></div>
-      <div class="board" id="board"></div>
+      <div class="board" id="board" role="grid" aria-label="Papan Connect 5"></div>
     </div>
 
     <div class="engine-bar">
-      <span id="engine-badge" class="engine-badge wasm">🧠 Negamax AI</span>
+      <span id="engine-badge" class="engine-badge js">Negamax AI</span>
       <span id="engine-timing" class="engine-timing"></span>
     </div>
 
@@ -76,7 +76,7 @@
   </main>
 
   <footer>
-    <p>Connect 5 Solver · AI Unbeatable · <span style="color:var(--red)">●</span> Player = Merah &nbsp;|&nbsp; <span style="color:var(--yellow)">●</span> AI = Kuning · Engine: Negamax + Alpha-Beta + TT</p>
+    <p>Connect 5 Solver · AI sangat kuat · <span style="color:var(--red)">●</span> Player = Merah &nbsp;|&nbsp; <span style="color:var(--yellow)">●</span> AI = Kuning · Negamax + Alpha-Beta + TT</p>
   </footer>
 
   <script src="game.js"></script>
