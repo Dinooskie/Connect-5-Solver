@@ -6,6 +6,7 @@ const {
   getWinner,
   dropR,
   liveWinCols,
+  boardKey,
   COLS,
   ROWS,
 } = require('./ai.worker.js');
@@ -53,6 +54,17 @@ test('blocks an immediate loss', () => {
   for (let i = 0; i < 4; i++) drop(board, 7, 1);
   assert.deepEqual(liveWinCols(board, 1), [7]);
   assert.equal(getBestJS(board, 2, { timeLimitMs: 50 }), 7);
+});
+
+test('canonical keys preserve mirror orientation', () => {
+  const board = emptyBoard();
+  drop(board, 0, 1);
+  drop(board, 1, 2);
+  const mirror = board.map(row => [...row].reverse());
+  const originalKey = boardKey(board, 1);
+  const mirrorKey = boardKey(mirror, 1);
+  assert.equal(originalKey.key, mirrorKey.key);
+  assert.notEqual(originalKey.mirrored, mirrorKey.mirrored);
 });
 
 test('opening move prefers the center', () => {

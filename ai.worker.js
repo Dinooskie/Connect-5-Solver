@@ -153,14 +153,15 @@ let timedOut = false;
 let nodeCount = 0;
 
 function boardKey(b, p) {
-  let normal = '', mirrored = '';
+  let normal = '', reflected = '';
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       normal += b[r][c];
-      mirrored += b[r][COLS - 1 - c];
+      reflected += b[r][COLS - 1 - c];
     }
   }
-  return (normal < mirrored ? normal : mirrored) + p;
+  const mirrored = reflected < normal;
+  return { key: (mirrored ? reflected : normal) + p, mirrored };
 }
 
 function negamax(b, depth, alpha, beta, p, lastR, lastC, tt) {
@@ -178,17 +179,17 @@ function negamax(b, depth, alpha, beta, p, lastR, lastC, tt) {
   if (oppWins.length > 1) return -(WIN_SCORE + depth - 1);
   if (depth === 0) return evalBoard(b, p);
 
-  const key = boardKey(b, p);
+  const { key, mirrored } = boardKey(b, p);
   const entry = tt.get(key);
   let ttMove = -1;
   if (entry && entry.depth >= depth) {
-    if (entry.flag === 0) return entry.score;                 // exact
-    if (entry.flag === 1) alpha = Math.max(alpha, entry.score); // lower bound
-    else beta = Math.min(beta, entry.score);                    // upper bound
+    if (entry.flag === 0) return entry.score;
+    if (entry.flag === 1) alpha = Math.max(alpha, entry.score);
+    else beta = Math.min(beta, entry.score);
     if (alpha >= beta) return entry.score;
-    ttMove = entry.move;
+    ttMove = mirrored ? COLS - 1 - entry.move : entry.move;
   } else if (entry) {
-    ttMove = entry.move;
+    ttMove = mirrored ? COLS - 1 - entry.move : entry.move;
   }
 
   let cols = oppWins.length === 1 ? oppWins : [];
@@ -217,7 +218,7 @@ function negamax(b, depth, alpha, beta, p, lastR, lastC, tt) {
   let flag = 0;
   if (best <= alphaOrig) flag = 2;      // upper bound
   else if (best >= beta) flag = 1;      // lower bound
-  tt.set(key, { depth, score: best, flag, move: bestMove });
+  tt.set(key, { depth, score: best, flag, move: mirrored ? COLS - 1 - bestMove : bestMove });
 
   return best;
 }
@@ -305,5 +306,5 @@ if (typeof self !== 'undefined' && typeof self.postMessage === 'function') {
 
 /* ── Exports for Node-based testing ── */
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { getBestJS, cwin, getWinner, dropR, isFull, liveWinCols, evalBoard, COLS, ROWS, WIN };
+  module.exports = { getBestJS, cwin, getWinner, dropR, isFull, liveWinCols, evalBoard, boardKey, COLS, ROWS, WIN };
 }
