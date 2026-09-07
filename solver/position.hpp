@@ -34,6 +34,7 @@ struct Position {
   bool won(int side) const;
   bool full() const;
   std::vector<int> legal_moves() const;
+  std::vector<int> winning_moves(int side) const;
   Position mirrored() const;
   Key key() const;
 };

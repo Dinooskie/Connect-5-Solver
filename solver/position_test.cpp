@@ -22,6 +22,10 @@ int main() {
   auto invalid = Position::from_moves("11111111");
   assert(!invalid);
 
+  auto threat = Position::from_moves("19293949");
+  assert(threat);
+  assert(threat->winning_moves(0) == std::vector<int>{4});
+
   auto asymmetric = Position::from_moves("11234");
   assert(asymmetric);
   assert(asymmetric->mirrored().mirrored().player[0] == asymmetric->player[0]);

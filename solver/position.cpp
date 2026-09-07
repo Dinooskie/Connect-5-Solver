@@ -53,6 +53,17 @@ std::vector<int> Position::legal_moves() const {
   return moves;
 }
 
+std::vector<int> Position::winning_moves(int side) const {
+  std::vector<int> moves;
+  if (side < 0 || side > 1) return moves;
+  for (int column : order) {
+    if (!can_play(column)) continue;
+    Bits move = Bits{1} << (column * stride + height[column]);
+    if (aligned(player[side] | move)) moves.push_back(column);
+  }
+  return moves;
+}
+
 Position Position::mirrored() const {
   Position result;
   result.turn = turn;

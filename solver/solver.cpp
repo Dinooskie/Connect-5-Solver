@@ -40,14 +40,23 @@ std::optional<Result> Solver::negamax(const Position& position) {
     return found->second;
   }
 
+  auto immediate = position.winning_moves(position.turn);
+  if (!immediate.empty()) {
+    table_[key] = Result::win;
+    return Result::win;
+  }
+
+  auto threats = position.winning_moves(position.turn ^ 1);
+  if (threats.size() > 1) {
+    table_[key] = Result::loss;
+    return Result::loss;
+  }
+
   bool can_draw = false;
-  for (int move : position.legal_moves()) {
+  auto moves = threats.empty() ? position.legal_moves() : threats;
+  for (int move : moves) {
     Position child = position;
     if (!child.play(move)) continue;
-    if (child.won(position.turn)) {
-      table_[key] = Result::win;
-      return Result::win;
-    }
     auto child_result = negamax(child);
     if (!child_result) return std::nullopt;
     if (*child_result == Result::loss) {
